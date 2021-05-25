@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"strconv"
 	"time"
 )
 
@@ -97,7 +98,7 @@ func OpObjectRelation(db *gorm.DB, opInters []*mysql.OpInter) error {
 
 
 func NewDbConnection(connStr *mysql.Config) (*gorm.DB, error) {
-	dbConfiguration := connStr.Username + ":" + connStr.Password + "@(" + connStr.Host + ":" + connStr.Port + ")/" + connStr.DBName + "?charset=" + connStr.Charset + "&parseTime=True&loc=Local"
+	dbConfiguration := connStr.Username + ":" + connStr.Password + "@(" + connStr.Host + ":" + strconv.Itoa(connStr.Port) + ")/" + connStr.DBName + "?charset=" + connStr.Charset + "&parseTime=True&loc=Local"
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
 		logger.Config{

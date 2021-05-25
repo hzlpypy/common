@@ -35,7 +35,7 @@ type Config struct {
 	Password string
 	DBName string
 	Host     string
-	Port     string
+	Port     int
 	DbName   string
 	Charset  string
 	NETWORK  string
