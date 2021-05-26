@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hzlpypy/common/utils"
 	"log"
 	"os"
 	"strings"
@@ -15,57 +14,73 @@ import (
 )
 
 //cfg 配置文件
-type cfg struct {
-	LogLvl     string   // 日志级别
-	EsAdders   []string //ES addr
-	EsUser     string   //ES user
-	EsPassword string   //ES password
+type Cfg struct {
+	Host       string
+	IndexName  string
+	CfgFiles   []*CfgFile // access:xxx1.txt error:xxx2.txt
+	EsAdders   []string   //ES addr
+	EsUser     string     //ES user
+	EsPassword string     //ES password
 }
 
-//SetDefault 默认初始化参数
-type SetDefault struct {
-	Host      string
-	IndexName string
-	LogLvl    string
+type CfgFile struct {
+	Name string
+	File *os.File
 }
 
-//SetInit 默认初始化参数设置
-var SetInit SetDefault
+// access error info
+type LogCategory struct {
+	log        *logrus.Logger
+	LogNameMap map[string]*os.File
+}
 
 //Init 初始化日志配置信息logrus
-//	param host http://10.0.1.77:9021/
-func Init(d *SetDefault) error {
-	if !utils.RegexpIPV4(d.Host) {
-		return errors.New("Fail: Please check if the host is correct")
+func Init(c *Cfg) (*LogCategory, error) {
+	//if !utils.RegexpIPV4(d.Host) {
+	//	return errors.New("Fail: Please check if the host is correct")
+	//}
+	res := &LogCategory{LogNameMap: make(map[string]*os.File)}
+	l := logrus.New()
+	validateLogName := map[string]bool{"access": true, "error": true, "info": true}
+	for _, cfgFile := range c.CfgFiles {
+		if _, ok := validateLogName[cfgFile.Name]; !ok {
+			return nil, errors.New("log name is invalid")
+		}
+		res.LogNameMap[cfgFile.Name] = cfgFile.File
 	}
-
-	SetInit.Host = d.Host
-	SetInit.IndexName = d.IndexName
-	var level = "error"
-	if d.LogLvl != "" {
-		level = d.LogLvl
-	}
-	cc := cfg{
-		LogLvl:     level,
-		EsAdders:   []string{SetInit.Host},
-		EsUser:     "",
-		EsPassword: "",
-	}
-	err := setupLogrus(cc)
+	err := setupLogrus(l, c)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	res.log = l
+	return res, nil
+}
+
+func (l *LogCategory) Access() *logrus.Logger {
+	l.log.SetOutput(l.LogNameMap["access"])
+	logLvl, _ := logrus.ParseLevel("info")
+	l.log.SetLevel(logLvl)
+	return l.log
+}
+
+func (l *LogCategory) Error() *logrus.Logger {
+	l.log.SetOutput(l.LogNameMap["error"])
+	logLvl, _ := logrus.ParseLevel("error")
+	l.log.SetLevel(logLvl)
+	return l.log
+}
+
+func (l *LogCategory) Info() *logrus.Logger {
+	l.log.SetOutput(l.LogNameMap["info"])
+	logLvl, _ := logrus.ParseLevel("info")
+	l.log.SetLevel(logLvl)
+	return l.log
 }
 
 //setupLogrus 初始化logrus 同时把logrus的logger var 引用到这个common.Logger
-func setupLogrus(cc cfg) error {
-	logLvl, err := logrus.ParseLevel(cc.LogLvl)
-	if err != nil {
-		return err
-	}
-	logrus.SetLevel(logLvl)
-	logrus.SetReportCaller(true)
+func setupLogrus(l *logrus.Logger, c *Cfg) error {
+	l.SetReportCaller(true)
+	//l.SetOutput(o)
 	//开启 logrus ES hook
 	// esh := newEsHook(cc)
 	// logrus.AddHook(esh)
@@ -76,12 +91,13 @@ func setupLogrus(cc cfg) error {
 
 //esHook 自定义的ES hook
 type esHook struct {
-	cmd    string // 记录启动的命令
-	client *elastic.Client
+	cmd       string // 记录启动的命令
+	client    *elastic.Client
+	indexName string
 }
 
 //newEsHook 初始化
-func newEsHook(cc cfg) (*esHook, error) {
+func newEsHook(cc *Cfg) (*esHook, error) {
 	es, err := elastic.NewClient(
 		elastic.SetURL(cc.EsAdders...),
 		elastic.SetBasicAuth(cc.EsUser, cc.EsPassword),
@@ -94,7 +110,7 @@ func newEsHook(cc cfg) (*esHook, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Elastic V6 Client: %v", err)
 	}
-	return &esHook{client: es, cmd: strings.Join(os.Args, " ")}, nil
+	return &esHook{client: es, cmd: strings.Join(os.Args, " "), indexName: cc.IndexName}, nil
 }
 
 //Fire logrus hook interface 方法
@@ -121,7 +137,7 @@ func (hook *esHook) sendEs(doc appLogDocModel) {
 			fmt.Println("send entry to es failed: ", r)
 		}
 	}()
-	_, err := hook.client.Index().Index(doc.indexName()).Type("_doc").BodyJson(doc).Do(context.Background())
+	_, err := hook.client.Index().Index(doc.indexName(hook.indexName)).Type("_doc").BodyJson(doc).Do(context.Background())
 	if err != nil {
 		log.Println(err)
 	}
@@ -144,6 +160,6 @@ func newEsLog(e *logrus.Entry) appLogDocModel {
 }
 
 // indexName es index name 时间分割
-func (m *appLogDocModel) indexName() string {
-	return SetInit.IndexName + "-" + time.Now().Local().Format("2006-01-02")
+func (m *appLogDocModel) indexName(indexName string) string {
+	return indexName + "-" + time.Now().Local().Format("2006-01-02")
 }

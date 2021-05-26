@@ -1,0 +1,4 @@
+time="2021-05-26T16:01:16+08:00" level=error msg=errwocuola func=main.main file="/home/huangzhilin/go/src/hzlpypy/common/example/main.go:25" test=err123
+time="2021-05-26T16:01:46+08:00" level=error msg=errwocuola func=main.main file="/home/huangzhilin/go/src/hzlpypy/common/example/main.go:25" test=err123
+time="2021-05-26T16:14:18+08:00" level=error msg=errwocuola func=main.main file="/home/huangzhilin/go/src/hzlpypy/common/example/main.go:29" test=err123
+time="2021-05-26T16:14:45+08:00" level=error msg=errwocuola func=main.main file="/home/huangzhilin/go/src/hzlpypy/common/example/main.go:29" test=err123
