@@ -1,0 +1,5 @@
+{
+    "order_center": "logic.order_center",
+    "notify": "logic.notify",
+    "waybill_center": "logic.waybill_center"
+}
