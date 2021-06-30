@@ -23,6 +23,12 @@ type Queue struct {
 	QueueBindMap map[string]interface{}
 }
 
+// 死信队列
+type DeadQueue struct {
+	QueueName    string
+	ExchangeName string
+}
+
 type TopicRes struct {
 	Msg byte
 }
